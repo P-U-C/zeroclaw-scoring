@@ -1,3 +1,29 @@
+"""
+tiers.py — Trust tier classification for the Zeroclaw Operator Scoring Module.
+
+Tier boundaries (downstream projection from upstream T0-T3):
+    ORACLE_VERIFIED    ← upstream T2/T3: karma ≥ 0.65, confidence_mid ≥ 0.65, oracle_count ≥ 2
+    PARTIALLY_VERIFIED ← upstream T1:   karma ≥ 0.45, confidence_mid ≥ 0.45
+    UNVERIFIED         ← upstream T0:   below thresholds
+
+Tier multipliers applied to base trust score:
+    ORACLE_VERIFIED    → 1.0×
+    PARTIALLY_VERIFIED → 0.7×
+    UNVERIFIED         → 0.4×
+
+Boundary rationale:
+    0.65 threshold: aligns with "high-confidence verified" in the upstream oracle model
+    (T2 karma floor). Requires multi-oracle confirmation (oracle_count ≥ 2) to prevent
+    single-oracle inflation.
+
+    0.45 threshold: aligns with "provisional" in the upstream model (T1 karma floor).
+    Single oracle sufficient but carries reduced routing weight via 0.7× multiplier.
+
+    Below 0.45: No meaningful oracle endorsement. Routed at minimum weight (0.4×) to
+    allow participation without privileged access.
+
+Upstream T0-T3 mapping: see UPSTREAM_TIER_MAP and from_upstream_tier() below.
+"""
 from enum import Enum
 
 

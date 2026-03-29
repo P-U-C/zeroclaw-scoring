@@ -1,3 +1,32 @@
+"""
+scorer.py — Core scoring function for the Zeroclaw Operator Scoring Module.
+
+Scoring formula:
+    confidence_mid = (confidence_lower + confidence_upper) / 2
+    trust_score = (0.6 * karma + 0.4 * confidence_mid) * tier_multiplier
+
+Where tier_multiplier is:
+    ORACLE_VERIFIED    → 1.0×  (karma ≥ 0.65, confidence_mid ≥ 0.65, oracle_count ≥ 2)
+    PARTIALLY_VERIFIED → 0.7×  (karma ≥ 0.45, confidence_mid ≥ 0.45)
+    UNVERIFIED         → 0.4×  (below thresholds)
+
+Degraded fallback:
+    When oracle data is stale, in a degraded/suspended state, or otherwise
+    unreliable, ALL degraded operators receive trust_score = 0.25 (fixed neutral
+    baseline) regardless of their oracle inputs. This ensures stale or degraded
+    oracle evidence cannot influence relative ranking between degraded operators.
+    Ties among degraded operators are broken lexicographically by operator_id.
+
+Ranking:
+    Operators sorted descending by trust_score. Ties broken by operator_id ascending.
+    Rank 1 = highest priority for Zeroclaw engine routing.
+
+Upstream compatibility:
+    Use from_snapshot(OracleScoreSnapshotV1) and from_attribution(AttributionOutcomeV1)
+    from zeroclaw_scoring.types to convert directly from the Hive Mind Oracle Routing
+    Adapter wire format (spi.oracle.v1) into OraclePayload for this scorer.
+    See: github.com/P-U-C/hive-mind-oracle-adapter
+"""
 import time
 import uuid
 
