@@ -115,9 +115,19 @@ class OperatorScore:
 
 @dataclass
 class ScoringResult:
+    """
+    Result of a scoring run.
+
+    Field determinism:
+        score_digest: deterministic — same inputs + policy → same digest
+        scored_at: non-deterministic — wall clock timestamp of this run
+        run_id: non-deterministic — unique identifier for this run instance
+    """
     operators: list[OperatorScore]   # sorted by rank (1 = best)
     policy_version: str              # "zeroclaw.scoring.v1"
-    scored_at: float                 # unix timestamp
+    scored_at: float                 # unix timestamp (non-deterministic)
     total_operators: int
     degraded_count: int
     result_digest: str               # SHA-256 of all operator digests concatenated
+    score_digest: str = ""           # SHA-256 of all operator digests — deterministic across runs
+    run_id: str = ""                 # UUID v4 — unique per invocation (non-deterministic)

@@ -9,9 +9,17 @@ Consumes oracle payloads from the Hive Mind Oracle Routing Adapter (github.com/P
 ## Setup
 
 ```bash
-pip install pytest
+# Option A: Install as editable package (recommended)
+git clone https://github.com/P-U-C/zeroclaw-scoring
 cd zeroclaw-scoring
-python3 -m pytest tests/ -v
+pip install -e .
+python -m pytest tests/ -v
+
+# Option B: Run without installing
+git clone https://github.com/P-U-C/zeroclaw-scoring
+cd zeroclaw-scoring
+pip install pytest
+PYTHONPATH=. python -m pytest tests/ -v
 ```
 
 ## Example
@@ -104,3 +112,35 @@ zeroclaw_engine.route(operators=result.operators)
 ```
 
 The `result_digest` (SHA-256 of all operator digests) provides a deterministic fingerprint for the full scoring run — use it for audit logging and cache invalidation.
+
+## Integration Contract
+
+The `ScoringResult` object is the stable interface between this module and the Zeroclaw engine.
+
+**Stable fields (guaranteed across patch versions):**
+- `operators`: list of `OperatorScore`, sorted by `rank` ascending (rank 1 = highest priority)
+- `operators[i].operator_id`: string, matches input `operator_id`
+- `operators[i].tier`: `Tier` enum — `oracle-verified`, `partially-verified`, `unverified`
+- `operators[i].trust_score`: float [0, 1]
+- `operators[i].rank`: int, 1-indexed
+- `operators[i].digest`: SHA-256 hex string, deterministic for same inputs + policy
+- `operators[i].degraded`: bool
+- `result.score_digest`: SHA-256 of all operator digests in rank order — use for cache invalidation
+- `result.policy_version`: string — bump on any threshold or formula change
+
+**Non-deterministic fields (do not use for equality checks):**
+- `result.scored_at`: wall clock timestamp
+- `result.run_id`: UUID v4, unique per invocation
+
+**Zeroclaw engine usage:**
+```python
+result = score_operators(payloads)
+# Route highest-priority operators first
+for op in result.operators:  # already sorted by rank
+    zeroclaw_engine.route(
+        operator_id=op.operator_id,
+        priority=op.rank,
+        tier=op.tier.value,
+        trust_score=op.trust_score,
+    )
+```

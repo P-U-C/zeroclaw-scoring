@@ -1,4 +1,5 @@
 import time
+import uuid
 
 from zeroclaw_scoring.types import OraclePayload, OperatorScore, ScoringResult
 from zeroclaw_scoring.tiers import Tier, TIER_MULTIPLIERS, classify_tier
@@ -14,15 +15,19 @@ def score_operators(
 ) -> ScoringResult:
     """Score a list of oracle payloads and return a ranked ScoringResult."""
     now = time.time()
+    run_id = str(uuid.uuid4())
 
     if not payloads:
+        empty_digest = compute_result_digest([])
         return ScoringResult(
             operators=[],
             policy_version=POLICY_VERSION,
             scored_at=now,
             total_operators=0,
             degraded_count=0,
-            result_digest=compute_result_digest([]),
+            result_digest=empty_digest,
+            score_digest=empty_digest,
+            run_id=run_id,
         )
 
     scored: list[OperatorScore] = []
@@ -47,7 +52,11 @@ def score_operators(
             trust_score = (0.6 * payload.raw_karma + 0.4 * confidence_mid) * multiplier
             notes.append(f"tier: {tier.value}")
 
-        digest = compute_operator_digest(payload, trust_score, tier)
+        digest = compute_operator_digest(
+            payload, trust_score, tier,
+            policy_version=POLICY_VERSION,
+            staleness_threshold=staleness_threshold_seconds,
+        )
         confidence_mid_out = (payload.confidence_lower + payload.confidence_upper) / 2
 
         scored.append(OperatorScore(
@@ -79,4 +88,6 @@ def score_operators(
         total_operators=len(scored),
         degraded_count=degraded_count,
         result_digest=result_digest,
+        score_digest=result_digest,
+        run_id=run_id,
     )

@@ -192,3 +192,79 @@ def test_upstream_tier_mapping():
     assert from_upstream_tier("T1") == Tier.PARTIALLY_VERIFIED
     assert from_upstream_tier("T0") == Tier.UNVERIFIED
     assert from_upstream_tier("unknown") == Tier.UNVERIFIED
+
+
+def test_digest_changes_with_policy_version():
+    """Same inputs but different policy version → different digest."""
+    import time
+    from zeroclaw_scoring.digest import compute_operator_digest
+    from zeroclaw_scoring.types import OraclePayload
+    from zeroclaw_scoring.tiers import Tier
+
+    payload = OraclePayload(
+        operator_id="op-policy-test",
+        raw_karma=0.75,
+        confidence_lower=0.70,
+        confidence_upper=0.80,
+        oracle_quality_score=0.90,
+        effective_sample_size=100,
+        oracle_count=2,
+        timestamp=time.time(),
+    )
+    d1 = compute_operator_digest(payload, 0.75, Tier.ORACLE_VERIFIED, policy_version="zeroclaw.scoring.v1")
+    d2 = compute_operator_digest(payload, 0.75, Tier.ORACLE_VERIFIED, policy_version="zeroclaw.scoring.v2")
+    assert d1 != d2
+
+
+def test_digest_changes_with_staleness_threshold():
+    """Same inputs but different staleness threshold → different digest."""
+    import time
+    from zeroclaw_scoring.digest import compute_operator_digest
+    from zeroclaw_scoring.types import OraclePayload
+    from zeroclaw_scoring.tiers import Tier
+
+    payload = OraclePayload(
+        operator_id="op-staleness-test",
+        raw_karma=0.70,
+        confidence_lower=0.65,
+        confidence_upper=0.75,
+        oracle_quality_score=0.88,
+        effective_sample_size=80,
+        oracle_count=2,
+        timestamp=time.time(),
+    )
+    d1 = compute_operator_digest(payload, 0.70, Tier.ORACLE_VERIFIED, staleness_threshold=3600.0)
+    d2 = compute_operator_digest(payload, 0.70, Tier.ORACLE_VERIFIED, staleness_threshold=7200.0)
+    assert d1 != d2
+
+
+def test_tier_boundary_exactly_0_65():
+    """Karma and confidence exactly at ORACLE_VERIFIED boundary."""
+    from zeroclaw_scoring.tiers import classify_tier, Tier
+    # Exactly at threshold with oracle_count >= 2 → should be ORACLE_VERIFIED
+    tier = classify_tier(karma=0.65, confidence_mid=0.65, oracle_count=2)
+    assert tier == Tier.ORACLE_VERIFIED
+    # Just below threshold
+    tier_below = classify_tier(karma=0.649, confidence_mid=0.65, oracle_count=2)
+    assert tier_below != Tier.ORACLE_VERIFIED
+
+
+def test_unavailable_oracle_state():
+    """oracle_state='unverified' triggers degradation."""
+    import time
+    from zeroclaw_scoring import score_operators
+    from zeroclaw_scoring.types import OraclePayload
+
+    payload = OraclePayload(
+        operator_id="op-unverified",
+        raw_karma=0.80,
+        confidence_lower=0.75,
+        confidence_upper=0.85,
+        oracle_quality_score=0.0,  # unverified oracle has quality 0
+        effective_sample_size=50,
+        oracle_count=1,
+        timestamp=time.time(),
+        oracle_state="unverified",
+    )
+    result = score_operators([payload])
+    assert result.operators[0].degraded is True
