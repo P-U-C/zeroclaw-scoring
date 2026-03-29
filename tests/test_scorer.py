@@ -137,3 +137,58 @@ def test_degraded_count_in_result():
     result = score_operators(payloads, staleness_threshold_seconds=3600.0)
     assert result.degraded_count == 1
     assert result.total_operators == 3
+
+
+def test_from_snapshot_adapter():
+    """from_snapshot converts flat fields correctly."""
+    from zeroclaw_scoring.types import OraclePayload, from_snapshot
+
+    class FakeCI:
+        lower = 0.70
+        upper = 0.85
+
+    class FakeSnapshot:
+        operator_id = "op-snap-test"
+        raw_karma = 0.78
+        confidence_interval = FakeCI()
+        oracle_quality_score = 0.91
+        effective_sample_size = 120
+        timestamp = time.time()
+        domain = "onchain"
+        oracle_state = type('S', (), {'value': 'verified'})()
+
+    payload = from_snapshot(FakeSnapshot())
+    assert payload.operator_id == "op-snap-test"
+    assert payload.raw_karma == 0.78
+    assert payload.confidence_lower == 0.70
+    assert payload.confidence_upper == 0.85
+    assert payload.oracle_state == "verified"
+
+
+def test_from_attribution_adapter_no_snapshot():
+    """from_attribution without snapshot uses conservative defaults."""
+    from zeroclaw_scoring.types import from_attribution
+
+    class FakeOutcome:
+        operator_id = "op-attr-test"
+        baseline_brier = 0.25
+        realized_brier = 0.10
+        timestamp = time.time()
+        domain = "onchain"
+        karma_delta = 0.05
+
+    payload = from_attribution(FakeOutcome())
+    assert payload.operator_id == "op-attr-test"
+    assert payload.raw_karma > 0.5  # positive Brier improvement → karma above 0.5
+    assert payload.oracle_state == "provisional"
+    assert payload.oracle_count == 1
+
+
+def test_upstream_tier_mapping():
+    """T2/T3 map to ORACLE_VERIFIED, T1 to PARTIALLY_VERIFIED, T0 to UNVERIFIED."""
+    from zeroclaw_scoring.tiers import from_upstream_tier, Tier
+    assert from_upstream_tier("T3") == Tier.ORACLE_VERIFIED
+    assert from_upstream_tier("T2") == Tier.ORACLE_VERIFIED
+    assert from_upstream_tier("T1") == Tier.PARTIALLY_VERIFIED
+    assert from_upstream_tier("T0") == Tier.UNVERIFIED
+    assert from_upstream_tier("unknown") == Tier.UNVERIFIED

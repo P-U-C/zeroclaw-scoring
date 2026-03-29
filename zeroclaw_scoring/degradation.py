@@ -10,6 +10,16 @@ def check_degradation(
     Check if oracle payload should be treated as degraded.
 
     Returns (is_degraded, reason). First matching condition wins.
+
+    When degraded, the scorer applies a conservative baseline:
+        trust_score = 0.5 * raw_karma (baseline equal-weight fallback)
+        tier = UNVERIFIED
+
+    This represents "no confidence in oracle data" — the operator receives a
+    score proportional only to raw karma at equal weight (0.5 coefficient),
+    without oracle confidence boosting or tier multiplier enhancement.
+    For fully missing data, raw_karma defaults to 0.5 (neutral), producing
+    trust_score = 0.25 — below all non-degraded operators.
     """
     if payload.timestamp < now - staleness_threshold:
         return True, "stale oracle data"

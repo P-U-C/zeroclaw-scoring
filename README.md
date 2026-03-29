@@ -4,7 +4,7 @@ Operator trust scoring module for the Zeroclaw routing engine — ranks oracle o
 
 ## Integration Context
 
-Consumes oracle payloads from the Hive Mind Oracle Routing Adapter (github.com/P-U-C/hive-mind-oracle-adapter). The `OraclePayload` type is wire-format compatible with both `reputation_update` and `attribution_outcome` message types from the adapter.
+Consumes oracle payloads from the Hive Mind Oracle Routing Adapter (github.com/P-U-C/hive-mind-oracle-adapter). `OraclePayload` is the canonical input type. Use `from_snapshot()` / `from_attribution()` to convert directly from the upstream adapter's wire types. This module is a downstream projection layer — not a replacement for the upstream T0-T3 engine.
 
 ## Setup
 

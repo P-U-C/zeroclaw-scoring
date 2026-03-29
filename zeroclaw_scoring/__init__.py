@@ -1,6 +1,6 @@
 from zeroclaw_scoring.scorer import score_operators
-from zeroclaw_scoring.types import OperatorScore, ScoringResult, OraclePayload
-from zeroclaw_scoring.tiers import Tier
+from zeroclaw_scoring.types import OperatorScore, ScoringResult, OraclePayload, from_snapshot, from_attribution
+from zeroclaw_scoring.tiers import Tier, from_upstream_tier
 
 __all__ = [
     "score_operators",
@@ -8,4 +8,7 @@ __all__ = [
     "ScoringResult",
     "OraclePayload",
     "Tier",
+    "from_snapshot",
+    "from_attribution",
+    "from_upstream_tier",
 ]
