@@ -12,7 +12,7 @@ def check_degradation(
     Returns (is_degraded, reason). First matching condition wins.
 
     When degraded, the scorer applies a conservative baseline:
-        trust_score = 0.5 * raw_karma (baseline equal-weight fallback)
+        trust_score = 0.25 (fixed neutral baseline — all degraded operators equal)
         tier = UNVERIFIED
 
     This represents "no confidence in oracle data" — the operator receives a

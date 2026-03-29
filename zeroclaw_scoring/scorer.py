@@ -39,8 +39,11 @@ def score_operators(
 
         if is_degraded:
             degraded_count += 1
-            # Fallback scoring: baseline equal-weight
-            trust_score = 0.5 * payload.raw_karma
+            # True neutral baseline: all degraded operators receive the same
+            # score (0.25) regardless of oracle inputs. Stale/degraded oracle
+            # data should not influence relative ranking between degraded ops.
+            # Tie-breaking within degraded operators is by operator_id (lexical).
+            trust_score = 0.25
             # Clamp for out-of-range karma
             trust_score = max(0.0, trust_score)
             tier = Tier.UNVERIFIED
